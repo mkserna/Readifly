@@ -1,0 +1,6 @@
+@Readifly.API_HostAddress = http://localhost:5141
+
+GET {{Readifly.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
