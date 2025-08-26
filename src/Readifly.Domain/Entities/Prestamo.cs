@@ -6,8 +6,8 @@ namespace Readifly.Domain.Entities
     public class Prestamo
     {
         public int Id { get; private set; }
-        public string ISBN { get; private set; }
-        public string UsuarioId { get; private set; }
+        public string ISBN { get; private set; } = string.Empty;
+        public string UsuarioId { get; private set; } = string.Empty;
         public DateTime FechaPrestamo { get; private set; }
         public DateTime FechaDevolucionProgramada { get; private set; }
         public DateTime? FechaDevolucionReal { get; private set; }

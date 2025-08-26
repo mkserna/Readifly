@@ -5,9 +5,12 @@ namespace Readifly.Domain.Entities
     public abstract class MaterialBibliografico
     {
         public int Id { get; protected set; }
-        public string ISBN { get; protected set; }
-        public string Nombre { get; protected set; }
+        public string ISBN { get; protected set; } = string.Empty;
+        public string Nombre { get; protected set; } = string.Empty;
         public bool EstaPrestado { get; protected set; }
+
+        // Constructor sin parámetros para EF Core
+        protected MaterialBibliografico() { }
 
         protected MaterialBibliografico(string isbn, string nombre)
         {

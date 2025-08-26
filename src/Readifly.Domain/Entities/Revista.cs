@@ -4,10 +4,13 @@ namespace Readifly.Domain.Entities
 {
     public class Revista : MaterialBibliografico
     {
-        public string Editorial { get; private set; }
+        public string Editorial { get; private set; } = string.Empty;
         public int Numero { get; private set; }
         public int Volumen { get; private set; }
         public DateTime FechaPublicacion { get; private set; }
+
+        // Constructor sin parámetros para EF Core
+        private Revista() { }
 
         public Revista(
             string isbn,

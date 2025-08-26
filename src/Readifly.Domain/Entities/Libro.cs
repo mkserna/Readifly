@@ -4,10 +4,13 @@ namespace Readifly.Domain.Entities
 {
     public class Libro : MaterialBibliografico
     {
-        public string Autor { get; private set; }
+        public string Autor { get; private set; } = string.Empty;
         public int NumeroPaginas { get; private set; }
-        public string Editorial { get; private set; }
+        public string Editorial { get; private set; } = string.Empty;
         public int AnioPublicacion { get; private set; }
+
+        // Constructor sin parámetros para EF Core
+        private Libro() { }
 
         public Libro(
             string isbn,
