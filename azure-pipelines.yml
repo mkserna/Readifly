@@ -1,0 +1,161 @@
+# Azure DevOps Pipeline para Readifly
+# Pipeline de CI/CD para .NET 8.0 con MySQL
+
+trigger:
+- main
+- develop
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  buildConfiguration: 'Release'
+  dotNetFramework: 'net8.0'
+  workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+stages:
+- stage: Build
+  displayName: 'Build and Test'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build and Test Job'
+    steps:
+    
+    # Checkout código
+    - checkout: self
+      fetchDepth: 0
+    
+    # Configurar .NET
+    - task: UseDotNet@2
+      displayName: 'Use .NET 8.0 SDK'
+      inputs:
+        packageType: 'sdk'
+        version: '8.0.x'
+        includePreviewVersions: false
+    
+    # Restaurar dependencias
+    - task: DotNetCoreCLI@2
+      displayName: 'Restore packages'
+      inputs:
+        command: 'restore'
+        projects: '**/*.csproj'
+        feedsToUse: 'select'
+    
+    # Compilar solución
+    - task: DotNetCoreCLI@2
+      displayName: 'Build solution'
+      inputs:
+        command: 'build'
+        projects: '**/*.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-restore'
+    
+    # Ejecutar pruebas unitarias
+    - task: DotNetCoreCLI@2
+      displayName: 'Run unit tests'
+      inputs:
+        command: 'test'
+        projects: 'tests/Readifly.UnitTests/Readifly.UnitTests.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-build --collect:"XPlat Code Coverage" --logger trx --results-directory $(Agent.TempDirectory)'
+      continueOnError: false
+    
+    # Ejecutar pruebas de integración
+    - task: DotNetCoreCLI@2
+      displayName: 'Run integration tests'
+      inputs:
+        command: 'test'
+        projects: 'tests/Readifly.IntegrationTests/Readifly.IntegrationTests.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-build --collect:"XPlat Code Coverage" --logger trx --results-directory $(Agent.TempDirectory)'
+      continueOnError: false
+    
+    # Publicar resultados de pruebas
+    - task: PublishTestResults@2
+      displayName: 'Publish test results'
+      inputs:
+        testResultsFormat: 'VSTest'
+        testResultsFiles: '**/*.trx'
+        searchFolder: '$(Agent.TempDirectory)'
+        mergeTestResults: true
+        testRunTitle: 'Readifly Test Results'
+      condition: succeededOrFailed()
+    
+    # Publicar cobertura de código
+    - task: PublishCodeCoverageResults@1
+      displayName: 'Publish code coverage'
+      inputs:
+        codeCoverageTool: 'Cobertura'
+        summaryFileLocation: '$(Agent.TempDirectory)/**/coverage.cobertura.xml'
+        reportDirectory: '$(Agent.TempDirectory)/**/coverage'
+      condition: succeededOrFailed()
+    
+    # Análisis de código con SonarQube
+    - task: SonarCloudPrepare@1
+      displayName: 'Prepare SonarQube analysis'
+      inputs:
+        SonarCloud: 'SonarCloud'
+        organization: '$(sonarCloudOrganization)'
+        scannerMode: 'MSBuild'
+        projectKey: '$(sonarCloudProjectKey)'
+        projectName: 'Readifly'
+        projectVersion: '$(Build.BuildNumber)'
+    
+    - task: DotNetCoreCLI@2
+      displayName: 'Build with SonarQube'
+      inputs:
+        command: 'build'
+        projects: '**/*.csproj'
+        arguments: '--configuration $(buildConfiguration)'
+    
+    - task: SonarCloudAnalyze@1
+      displayName: 'Run SonarQube analysis'
+    
+    - task: SonarCloudPublish@1
+      displayName: 'Publish SonarQube results'
+      inputs:
+        pollingTimeoutSec: '300'
+    
+    # Crear artefactos
+    - task: DotNetCoreCLI@2
+      displayName: 'Publish application'
+      inputs:
+        command: 'publish'
+        publishWebProjects: false
+        projects: 'src/Readifly.API/Readifly.API.csproj'
+        arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+        zipAfterPublish: true
+    
+    # Publicar artefactos
+    - task: PublishBuildArtifacts@1
+      displayName: 'Publish artifacts'
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'readifly-app'
+        publishLocation: 'Container'
+
+- stage: Deploy
+  displayName: 'Deploy to Azure'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: DeployToAzure
+    displayName: 'Deploy to Azure App Service'
+    environment: 'Production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          
+          # Descargar artefactos
+          - download: current
+            artifact: 'readifly-app'
+          
+          # Desplegar a Azure App Service
+          - task: AzureWebApp@1
+            displayName: 'Deploy to Azure App Service'
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              appType: 'webApp'
+              appName: '$(azureAppServiceName)'
+              package: '$(Pipeline.Workspace)/readifly-app/**/*.zip'
+              appSettings: |
+                -ConnectionStrings__DefaultConnection "$(connectionString)"
+                -ASPNETCORE_ENVIRONMENT "Production"

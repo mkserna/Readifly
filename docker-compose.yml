@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  readifly-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5141:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=mysql;Port=3306;Database=readifly;Uid=root;Pwd=password;SslMode=None;
+    depends_on:
+      - mysql
+    networks:
+      - readifly-network
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: readifly
+      MYSQL_USER: readifly
+      MYSQL_PASSWORD: readifly123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - readifly-network
+
+volumes:
+  mysql_data:
+
+networks:
+  readifly-network:
+    driver: bridge

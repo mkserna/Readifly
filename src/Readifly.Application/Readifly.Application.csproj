@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Readifly.Domain\Readifly.Domain.csproj" />
-    <ProjectReference Include="..\Readifly.Common\Readifly.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>
